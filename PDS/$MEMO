@@ -1,0 +1,435 @@
+Another date calculation routine, also provides holidays, etc
+
+        I started DATECALC because I thought EDATE was not returning the
+    correct result when I was fiquring some birthdays.  It seemed like the
+    leap years were being ignored.  They were, because they should be (if
+    you want to find out how many days old you are, use the C output mode
+    on each date and subtract the results).
+
+        So, to justify all the time I spent on it, I added bells and
+    whistles.  All REXX date formats are excepted as input, as well as ISO.
+    In addition there are some alternate outputs supported, like ISO, days
+    between dates, ORACLE, holidays in a month, holidays in a year, what
+    week of the year, what quarter in a year, and some misc.  The holidays
+    reported are only the federal holidays of the U.S.  Government.  Where
+    a holiday falls on a weekend, the actual observed date is also given.
+
+        DATECALC is mostly plug compatable with EDATE.  Differences
+    include, but are not limited to; 1) commas between output formats, 2) a
+    semi-colan between REXX output and alternate output, 3) the Long format
+    is not supported.
+
+        I also have gotten more accuracy in the area of adding and
+    subtracting time periods from a date.  But not a 0% error rate, which
+    bugs me to no end (who came up with this calendar anyway?).
+
+        On the test detailed below (and included as TST EXEC in NOTE
+    DATECALC) I came up with a 1.326% error rate (and I would be pleased if
+    someone could tell me how to program that out).
+
+        The test ran for approximately 9.5 hrs during the nite on a 3081-kx
+    (15 mips) with no other load on the system.  For each day of 1990 I
+    subtract a time period (m/d) and then add the same time period to the
+    result and compare what went in with what came out.  For each day of
+    the year I would subtract/add a time period in the range of 1/1 to
+    12/31.  So the test did 133,225 comparisons.  I did this for both EDATE
+    and DATECALC.
+
+*** CREATED 04/11/90 13:29:54 BY NAV/SCOTT ***
+
+Append on 04/12/90 at 20:04 by Mike Morrow, UC San Francisco, 415-476-4525:
+
+If it is not  too hard (I have not looked at the  EXEC), I would like to
+see 'LONG'  implemented. I use EDATE2  for accounting and as  the end of
+the century is coming, they want to see the fully qualified year.
+
+I am  about to  test it  and enjoy access  to the  new options  you have
+provided, but cannot switch over without 'LONG'.
+
+Thanks for VMSHAREing
+Mike Morrow
+
+*** APPENDED 04/12/90 20:05:00 BY UCS/MDM ***
+
+Append on 04/12/90 at 20:06 by Mike Morrow, UC San Francisco, 415-476-4525:
+
+It seems that  REXXERR external routine is needed. Could  that be placed
+on VMSHARE as well ?
+
+Mike Morrow
+
+*** APPENDED 04/12/90 20:06:10 BY UCS/MDM ***
+
+Append on 04/12/90 at 22:17 by Mike Morrow, UC San Francisco, 415-476-4525:
+
+Here is the result of running the supplied TST EXEC on out VM/HPO 5
+system on a 3090/200S.
+----------------
+tst
+There are no EDATE * SYSTEM or USER EXECs storage resident
+01
+   01
+      01 checking 01/01 - all the days in 01/1990
+      02 checking 01/01 - all the days in 02/1990
+      03 checking 01/01 - all the days in 03/1990
+03/29/90 - 01/01 = 02/28/90 but 02/28/90 + 01/01 = 04/01/90 edate
+03/29/90 - 01/01 = 02/28/90 but 02/28/90 + 01/01 = 04/01/90 datecalc
+03/30/90 - 01/01 = 03/01/90 but 03/01/90 + 01/01 = 04/02/90 edate
+03/30/90 - 01/01 = 02/28/90 but 03/01/90 + 01/01 = 04/01/90 datecalc
+03/31/90 - 01/01 = 03/02/90 but 03/02/90 + 01/01 = 04/03/90 edate
+03/31/90 - 01/01 = 02/28/90 but 03/02/90 + 01/01 = 04/01/90 datecalc
+      04 checking 01/01 - all the days in 04/1990
+      05 checking 01/01 - all the days in 05/1990
+05/31/90 - 01/01 = 04/30/90 but 04/30/90 + 01/01 = 06/01/90 edate
+05/31/90 - 01/01 = 04/30/90 but 04/30/90 + 01/01 = 06/01/90 datecalc
+      06 checking 01/01 - all the days in 06/1990
+      07 checking 01/01 - all the days in 07/1990
+07/31/90 - 01/01 = 06/30/90 but 06/30/90 + 01/01 = 08/01/90 edate
+07/31/90 - 01/01 = 06/30/90 but 06/30/90 + 01/01 = 08/01/90 datecalc
+      08 checking 01/01 - all the days in 08/1990
+      09 checking 01/01 - all the days in 09/1990
+      10 checking 01/01 - all the days in 10/1990
+10/31/90 - 01/01 = 09/30/90 but 09/30/90 + 01/01 = 11/01/90 edate
+10/31/90 - 01/01 = 09/30/90 but 09/30/90 + 01/01 = 11/01/90 datecalc
+      11 checking 01/01 - all the days in 11/1990
+      12 checking 01/01 - all the days in 12/1990
+12/31/90 - 01/01 = 11/30/90 but 11/30/90 + 01/01 = 01/01/91 edate
+12/31/90 - 01/01 = 11/30/90 but 11/30/90 + 01/01 = 01/01/91 datecalc
+   02
+      01 checking 01/02 - all the days in 01/1990
+hx
+CMS
+----------------
+It  seems that  EDATE and  DATECALC both  miss on  some dates,  but that
+DATECALC  misses  on  more of  them.  I  hope  that  I am  reading  this
+correctly. Do you  plan to make corrections to at  least match the EDATE
+results ? Do these results compare with your test runs ? Maybe something
+got corrupted in the translation to and from ASCII. (I did fix the right
+bracket/or bar translation.)
+
+I am not intending  to complain, but I would like  to use the additional
+features but need more accuracy as you have mentioned previously.
+
+Being able to run it as a command and get results back on the console is
+a REALLY NICE feature.
+
+Mike Morrow
+
+*** APPENDED 04/12/90 22:17:57 BY UCS/MDM ***
+
+Append on 04/13/90 at 08:45 by Scott Mattes -- I-NET, Inc. ( 703 ) 769-2917:
+
+Mike,
+  I can code for LONG. REXXERR is available in NOTE REXXERR. I get diff
+results than you did, but in your append edate and datecalc had the same
+error rate. How up to date is the code in NOTE EDATE2? I am running and
+spooling a short test and will upload the results soon. the error results
+I saw on my test, run to completion were 38,641 edate errors to 1767 datecalc
+errors.
+
+*** APPENDED 04/13/90 08:45:01 BY NAV/SCOTT ***
+
+Append on 04/13/90 at 08:54 by Scott Mattes -- I-NET, Inc. ( 703 ) 769-2917:
+
+Mike,
+  Here are my results running it. Edate has 12 errors to datecalc's 7. I
+notice that on your run 7/31/90 came up as an error for edate, but on mine
+7/1/90 came up. HMMMMMMMM.
+---------------------------
+There are no EDATE * SYSTEM or USER EXECs storage resident
+There are no DATECALC * SYSTEM or USER EXECs storage resident
+01
+   01
+      01 checking 01/01 - all the days in 01/1990
+01/01/90 - 01/01 = 11/30/89 but 11/30/89 + 01/01 = 12/31/89 edate
+      02 checking 01/01 - all the days in 02/1990
+      03 checking 01/01 - all the days in 03/1990
+03/01/90 - 01/01 = 01/31/90 but 01/31/90 + 01/01 = 03/04/90 edate
+03/29/90 - 01/01 = 02/28/90 but 02/28/90 + 01/01 = 04/01/90 datecalc
+03/30/90 - 01/01 = 03/01/90 but 03/01/90 + 01/01 = 04/02/90 edate
+03/30/90 - 01/01 = 02/28/90 but 03/01/90 + 01/01 = 04/01/90 datecalc
+03/31/90 - 01/01 = 03/02/90 but 03/02/90 + 01/01 = 04/03/90 edate
+03/31/90 - 01/01 = 02/28/90 but 03/02/90 + 01/01 = 04/01/90 datecalc
+      04 checking 01/01 - all the days in 04/1990
+04/01/90 - 01/01 = 02/28/90 but 02/28/90 + 01/01 = 03/29/90 edate
+      05 checking 01/01 - all the days in 05/1990
+05/01/90 - 01/01 = 03/31/90 but 03/31/90 + 01/01 = 05/02/90 edate
+05/31/90 - 01/01 = 04/30/90 but 04/30/90 + 01/01 = 06/01/90 datecalc
+      06 checking 01/01 - all the days in 06/1990
+06/01/90 - 01/01 = 04/30/90 but 04/30/90 + 01/01 = 05/31/90 edate
+      07 checking 01/01 - all the days in 07/1990
+07/01/90 - 01/01 = 05/31/90 but 05/31/90 + 01/01 = 07/02/90 edate
+07/31/90 - 01/01 = 06/30/90 but 06/30/90 + 01/01 = 08/01/90 datecalc
+      08 checking 01/01 - all the days in 08/1990
+08/01/90 - 01/01 = 06/30/90 but 06/30/90 + 01/01 = 07/31/90 edate
+      09 checking 01/01 - all the days in 09/1990
+      10 checking 01/01 - all the days in 10/1990
+10/01/90 - 01/01 = 08/31/90 but 08/31/90 + 01/01 = 10/02/90 edate
+10/31/90 - 01/01 = 09/30/90 but 09/30/90 + 01/01 = 11/01/90 datecalc
+      11 checking 01/01 - all the days in 11/1990
+11/01/90 - 01/01 = 09/30/90 but 09/30/90 + 01/01 = 10/31/90 edate
+      12 checking 01/01 - all the days in 12/1990
+12/01/90 - 01/01 = 10/31/90 but 10/31/90 + 01/01 = 12/02/90 edate
+12/31/90 - 01/01 = 11/30/90 but 11/30/90 + 01/01 = 01/01/91 datecalc
+
+*** APPENDED 04/13/90 08:54:16 BY NAV/SCOTT ***
+
+Append on 04/13/90 at 08:59 by Scott Mattes -- I-NET, Inc. ( 703 ) 769-2917:
+
+Mike,
+  Since I invoked MONITOR on NOTE DATECALC and I don't see you listed as
+having looked at it, how did you get it???????????? Or is this some know
+hole in MONITOR?
+
+*** APPENDED 04/13/90 08:59:01 BY NAV/SCOTT ***
+
+Append on 04/13/90 at 13:26 by Bruce Sather -ADI- Arthur D. Little 617-864-5770:
+
+There are two versions of EDATE arithmetic calculations: the earlier one
+added/subtracted months first then days; the new one does days then months.
+Both are 'right' even though they give different results.  In the case of
+Feb 28 + 1/1/ the result under the new way is Apr 1 (and that's no April Fool's)
+
+HUH?
+
+Adding 1/1 to Feb 28 gives different answers depending on how you do it
+mechanically and what you intend philosophically.  In the current method,
+1 day added to to Feb 28 gives Mar 1 (that is, Feb 29 carries to Mar 1).
+Now we add a month, making the result Apr 1 (one month after Mar is Apr).
+The old method of months first gave Feb to Mar and then 28 to 29 with the
+result of Mar 29.
+
+The new method against Jan 31 + 1/1 gives Mar 1 and the old something like
+Mar 4.
+The problems all revolve around the question: what is a month?  If you add
+4 days first to Feb 28 you get the internal date of Feb 32, which then is
+changed to Mar 4.  Now I add 'a month more' and get Apr 4...or do I look at
+Feb 28 and bump it up a month to Mar 28 then add 4 days and get Apr 1?
+Or take Jan 31.  Adding a month to that gives me Feb 31...do I make that
+Mar 3 or maybe call it Feb 28 because we're going from one 'last day of the
+month' to the next one.
+
+Anyone for a BOF in Kansas City?
+
+*** APPENDED 04/13/90 13:26:37 BY ADI/SATHER ***
+
+Append on 04/13/90 at 14:04 by Scott Mattes -- I-NET, Inc. ( 703 ) 769-2917:
+
+  DATECALC has been updated to support the L feature of EDATE. Did I get it
+right Mike?
+
+*** APPENDED 04/13/90 14:04:23 BY NAV/SCOTT ***
+
+Append on 04/17/90 at 20:01 by Mike Morrow, UC San Francisco, 415-476-4525:
+
+Scott,
+
+I will get the new DATECALC as  well as verify the newest EDATE2 and run
+both with 'L'  and let you know.  Again, thanks, I don't mean  to nag, I
+really like what you did.
+
+Mike Morrow
+
+*** APPENDED 04/17/90 20:01:17 BY UCS/MDM ***
+
+Append on 04/18/90 at 13:40 by Scott Mattes -- I-NET, Inc. ( 703 ) 769-2917:
+
+Mike,
+  Test it against EDATE2? Neat idea. Ops, when I do it (after posting the
+change to support L) I find DATECALC has a problem. Sorry about that, should
+not let system restarts in the middle of a work day distract me and make me
+do dumb things. DATECALC is corrected and should now support L right.
+  Any more on running that test and comparing error rates? I image you
+could run it on your 3090 in a couple of hours, if not less.
+  Let me know what you come up with.
+  Don't worry about sounding like a nag, either the code works or it don't.
+I miss the *body* (notice, non-sexist :) ) that use to nitpick my code,
+between us we turned out some real nice stuff, cause one person can't think
+of it all.
+
+*** APPENDED 04/18/90 13:40:31 BY NAV/SCOTT ***
+
+Append on 04/19/90 at 14:12 by Mike Morrow, UC San Francisco, 415-476-4525:
+
+Scott,
+  I called and  you were out, so  I uploaded this for you.  This is with
+  the newest, 'L modified' code. The autoshift  to long is nice in 3 and
+  4. Are there supposed  to be leading zeroes on the  non-Long form in 5
+  and 6. Are  the semicolons an artifact of VMSHARE  transmission (8, 9,
+  10 and 11) ? I will rerun TST here.
+
+  Unfortunagely, we bill  for every CPU second and we  have about 6 100%
+  CPU users on a  200, so I cannot take very much time  any time, day or
+  night. I wish I could. I will  upload from the TST results if anything
+  interesting appears.
+
+  Thanks,
+  Mike
+
+     3 *-* x = DATECALC('S','1/29/1990','- 11/1')  Automatic return
+       >>>   "19890228"                            of LONG, nice.
+
+     4 *-* x = DATECALC('S','2/28/1989','+ 11/1')  OK
+       >>>   "19900201"
+
+     5 *-* x = DATECALC('S','1/29/90','- 11/1')    Are there supposed
+       >>>   "00890228"                            to be leading 0's ?
+
+     6 *-* x = DATECALC('S','2/28/89','+ 11/1')    Same question
+       >>>   "00900201"
+
+     8 *-* x = DATECALC('S','1/29/1990','- 11/1','L')   Semicolon ?
+       >>>   "19890228;"
+
+     9 *-* x = DATECALC('S','2/28/1989','+ 11/1','L')   same question
+       >>>   "19900201;"
+
+    10 *-* x = DATECALC('S','1/29/90','- 11/1','L')     same question
+       >>>   "19890228;"
+
+    11 *-* x = DATECALC('S','2/28/89','+ 11/1','L')     same question
+       >>>   "19900201;"
+
+Ready; T=0.32/0.37 10:59:13
+
+*** APPENDED 04/19/90 14:12:43 BY UCS/MDM ***
+
+Append on 04/20/90 at 15:23 by Scott Mattes -- I-NET, Inc. ( 703 ) 769-2917:
+
+Mike (and anyone else interested in how it works)
+  DATECALC assumes you are telling it EXACTLY, except in the case of the L
+alt_output (then it assumes you want this century prefixed to the 2 char
+year). So if you specify S output and 3/31/90, DATECALC assumes the year 90.
+  If you specify any alt_output (other than L, I just fixed that) all
+alternate output will be after the ';', so DATECALC S 3/31/1990 . L ORACLE
+return 19900331; 31-Mar-1990
+  I hope this clears up some questions.
+
+*** APPENDED 04/20/90 15:23:13 BY NAV/SCOTT ***
+
+Append on 04/25/90 at 17:25 by Mike Morrow, UC San Francisco, 415-476-4525:
+
+Scott,
+
+One thing I noticed while testing is that the time you take is
+only about 66% of the time of EDATE2.  That has been one of my
+(previously unmentioned) complaints about EDATE2.
+
+My only problem now, and it is a small one, is that you will
+put in 2 leading zeroes if LONG is not requested.
+
+Is that a feature or an 'oops' ?
+
+Looking better all the time.
+
+Mike Morrow
+
+*** APPENDED 04/25/90 17:25:11 BY UCS/MDM ***
+
+Append on 04/25/90 at 17:28 by Mike Morrow, UC San Francisco, 415-476-4525:
+
+Scott,
+
+Make that 56%.  I was comparing apples and oranges.  EDATE2 had
+been through a compress routine which makes it faster.  After doing
+that to DATECALC, the times were even more impressive.
+
+Mike Morrow
+
+*** APPENDED 04/25/90 17:28:15 BY UCS/MDM ***
+
+Append on 04/26/90 at 07:46 by Scott Mattes -- I-NET, Inc. ( 703 ) 769-2917:
+
+  That was one comparison I hadn't thought to make. Thanks for the numbers.
+The leading zeros are not an 'ops' on my part. The 'assumption' I make
+when I handle the dates you pass is that you are telling me exactly what
+dates you want me to process, so if you pass 3/4/90 you don't mean March
+4, 1990, you mean March 4, 90.
+
+*** APPENDED 04/26/90 07:46:34 BY NAV/SCOTT ***
+
+Append on 04/26/90 at 08:35 by Bruce Sather -ADI- Arthur D. Little 617-864-5770:
+
+Hmmm... I ran two versions of edate against datecalc 1.0 and got just the
+reverse.  edate is even faster if i remove the extensive input date conversion
+and checking (edate handles date conversions, whereas datecalc doesn't).
+
+On the date comparison and arithmetic front, I have a new version that at
+least consistently produces comparisons that, when run thru as additions to
+the first comparand, report the second comparand.  However, anomolies like
+1/31/90 + 1month 1 day --> Mar 3 are going to happen and there's nothing I can
+rationalize about changing the behavior.  When one considers that datecalc
+gives even more bizzare results (1/31/90 + 1/1 --> 3/1/90 but
+1/31/90 + 1/0 --> 3/3/90!!) the problem seems to be exhausted.  Before I
+upload the new edate I'm going to think about week-of-the-year some more.
+It gives the proper ISO w-o-t-y but that may not be that useful.  Also,
+the new edate handles input dates in FDR/ABR format (yy.ddd) plus the
+command-line calling feature (this pursuit seems safer than MEMO SEXISM).
+
+*** APPENDED 04/26/90 08:35:11 BY ADI/SATHER ***
+
+Append on 04/26/90 at 08:53 by Scott Mattes -- I-NET, Inc. ( 703 ) 769-2917:
+
+Bruce,
+  I have not compared speeds, but will schedule that for tonight. I will
+use the latest version on VMSHARE of both pgms. Let you know tomorrow.
+  I beg to dif on the date conversions. DATECALC S B111000 = 03041129,
+isn't that date conversion? Or did you mean something else?
+DATECALC takes all of the REXX DATE outputs as input, plus the ISO format.
+  I hadn't (and none of my testers here) thought to check 1/31/90 +1/1
+against 1/31/90 +1/0. Need to look into that for sure.
+  Here is to good, clean, non-sexist competition!
+
+*** APPENDED 04/26/90 08:53:10 BY NAV/SCOTT ***
+
+Append on 04/27/90 at 07:47 by Scott Mattes -- I-NET, Inc. ( 703 ) 769-2917:
+
+  I ran 3 tests last night. 1) edate v. datecalc, edate won with a walltime
+ratio of 1 to 1.67, 2) edate v. datecalc run through COMPREXX, edate won with
+a ratio of 1 to 2.04, 3) edate v. datecalc with address command, edate won
+with ratio of 1 to 1.67.
+  Each test executed EDATE then DATECALC, repeating this for 1000 times.
+Each routine was EXECLOADed before each test. VTIME and TTIME were real
+high for test 2, I'll have to stop using COMPREXX.
+  I was really suprised by the results of test 2.
+  I think I have the 1/31/90 +1/1 and 1/31/90 +1/0 thing fiquired out and
+will do a full add/subtract test this weekend.
+
+*** APPENDED 04/27/90 07:47:58 BY NAV/SCOTT ***
+
+Append on 04/30/90 at 08:26 by Scott Mattes -- I-NET, Inc. ( 703 ) 769-2917:
+
+  Well, with the fix to the problem above (1/31/1990 - 1/1 and 1/31/1990 - 1/0
+) the number of errors for both EDATE and DATECALC = 38641 (see above for
+description of test used). Dismal. The only 'bright' spot might be that
+were EDATE and DATECALC get different wrong answers about the same test
+DATECALC is a day closer to correct (but still wrong).
+  I will replace the EXEC in NOTE DATECALC with the new version.
+
+*** APPENDED 04/30/90 08:26:45 BY NAV/SCOTT ***
+
+Append on 05/16/90 at 14:01 by Mike Morrow, UC San Francisco, 415-476-4525:
+
+Scott,
+
+Where could I get the source for this REXXVAR program you mention in the
+CALS exec ?  I have no source or executable at this time.
+
+Mike Morrow
+
+*** APPENDED 05/16/90 14:01:57 BY UCS/MDM ***
+
+Append on 05/16/90 at 16:56 by Scott Mattes -- I-NET, Inc. ( 703 ) 769-2917:
+
+Mike,
+  Sorry, thought it was here. Now it is. Must have got it from the TOOLS
+tape. See NOTE REXXVAR.
+
+*** APPENDED 05/16/90 16:56:07 BY NAV/SCOTT ***
+
+    Date calculation routine with extended in/output formats.  Plus holidays
+and other such stuff.
+
+    I had to squash some minor bugs and added variable date format for the
+second date field, so here are the new exec and help file.
+

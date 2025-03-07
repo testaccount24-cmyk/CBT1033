@@ -1,0 +1,148 @@
+)F FUNCTION -
+
+    DATECALC is a REXX function that allows you find the difference
+    between two dates, add or subtract a time period from a date, or
+    convert a given date to another format.  You can also have the
+    output in some additional formats, and get U.S. Holidays for the
+    month or year.
+
+    The output and date input can be in any format supported by the
+    REXX DATE function, so date conversion from one form to another is
+    allowed.  Non-IBM REXX date formats are supported for input and
+    output, and holidays can be requested for a month or a year.
+
+)X SYNTAX -
+    To add or subtract a time period from a date;
+
+    x = DATECALC(Output,Date,-/+ m/d/y,Alt_output)
+
+    To find the difference between two dates;
+
+    x = DATECALC(Output,Date1,Date2,Alt_output)
+
+ ALIASES  - none.
+ DEFAULTS - none.
+ REQUIRED - Date/+-m/d/y or Date1/Date2.
+
+)O OPERANDS -
+
+))Output -
+            One, or more, of the valid REXX DATE options.  If more than
+            one is given the output is the result of appending, with a
+            comma between each form of the answer.  If you only want
+            the alt_output, you can code '.' as a place holder for
+            output.
+
+))Date  -
+))Date1
+))Date2     A date in the format d/m/y.  Defaults to DATE('U').  You
+            may preface the date with any of the valid REXX DATE
+            options to indicate type of input.
+
+            i.e. b89234 indicates the input date is in base format.
+
+            Besides the REXX DATE options, you can use I for ISO format
+            (yyyy-mm-dd) and O for Oracle (dd-mmm-yy)
+
+))Operation -
+            Either "+" or "-".  When used as a function the third
+            argument should have the format '+/- m/d/y', as in
+            '+ 3/23/0'.  When a + or - is not specified, then it is
+            assumed that the second and third arguments are dates.
+
+))m/d/y     -
+            A time span.  Mm, dd, or yy can be 0-9999
+
+))Alt_output-
+            This output will be appended to any of the first form
+            output with a semi-colon between them.  As with the first
+            form output, each form of the answer will have a comma
+            between them.
+
+    D     -
+            Days between dates. This form will span years, unlike the
+            primary D format (which conforms to the EDATE format).
+
+    HM    -
+            Holidays in the given month.  Returns None if there are no
+            holidays.
+
+            For example,
+
+            x = DATECALC(.,11/1/1190,.,HM) would return
+            Veteran's Day - 11/11/1990 on 11/12/1990,
+            Thanksgiving Day - 11/22/1990
+
+    HY    -
+            Holidays in the given year.  Returns the name of the
+            holiday, followed by a '-', followed by the date of the
+            holiday and the date the holiday is taken if it fell on a
+            Saturday or Sunday.
+
+    ISO   -
+            ISO format, yyyy-mm-dd
+
+    L     -
+            Years will not be truncated to 2 digits. If you don't
+            specify L, x = DATECALC(U,8/25/1957) comes out as 8/25/57.
+            If you do specify L, it comes out as 8/25/1957.
+
+    LEAPS -
+            Leap years in answer
+
+    ORACLE-
+            ORACLE format, dd-mmm-yy
+
+    M     -
+            Days in month of date1
+
+    W     -
+            Weeks in result
+
+    WY    -
+            Week of Year
+
+    Q     -
+            Quarter of Year ( Jan-Feb, .....)
+
+)NOTES -
+1.  Date1 should always be the larger of the two numbers when doing
+    subtraction or a difference.
+
+2.  The third argument, when the operation is -/+, is not checked for
+    the regular date conformance.  Any value can be passed, so 13// or
+    /45/ would be valid.
+
+3.  When doing a date +/- a time period it hardly pays to ask for the
+    output in formats like M, J, etc.  Also, if you add a time period
+    to a date, it does not follow that you can subtract the same time
+    period from the result and get the starting date.  For example;
+
+    x = DATECALC(S,1/29/1990,-11/1) = 19890228
+
+    but,
+
+    x = DATECALC(S,2/28/1989,+11/1) = 19900201
+
+4.  When doing date differences DATECALC first figures out how many
+    months and days remain in the second date, then adds these to the
+    full months, days and years of the first date.  The result is then
+    'fixed' (months > 12, days greater than days in results month).
+
+5.  When doing a date minus a time period DATECALC first subtract the
+    month/s, day/s, and year/s of the time period from the date.  The
+    result is then 'fixed' (months < 12, days < 1)
+
+6.  When doing a date plus a time period DATECALC first addes the
+    month/s, day/s, and year/s of the time period from the date.  The
+    result is then 'fixed' (months > 12, days greater than days in
+    results month).
+
+7.  In 4, 5, and 6 leap year is taken into consideration.
+
+)ERRORS
+    RC = 1 = invalid output option
+    RC = 2 = invalid date1
+    RC = 3 = invalid operation
+    RC = 4 = invalid date2 or m/d/y not numeric
+    RC = 5 = invalid alt_output option
