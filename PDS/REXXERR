@@ -1,0 +1,151 @@
+/* rexx */
+/**-------------------------------------------------------------**/
+/* Created by:          On:      Reason:                         */
+/* Mattes, Scott NMI    06/29/87 Initial writting                */
+/*                                                               */
+/* Purpose:                                                      */
+/*                                                               */
+/*   To display as much information as possible at the time an   */
+/* error occurs.                                                 */
+/*                                                               */
+/* External routines:   Purpose:                                 */
+/*                                                               */
+/* REXXERR  EXEC        Displays information on error conditions */
+/*                                                               */
+/* Modified by:                                                  */
+/* Scott (nmi) Mattes   02 Mar 1989 Explain your changes here    */
+/* Scott (nmi) Mattes   03 Feb 1989 Replace SHOWSTAK w/Do loop   */
+/*                                  Add Say of buffer count      */
+/* Edgerley, Mel        08/31/87 made better, doesn't use stack  */
+/* Mattes, Scott NMI    09/09/87 update explain and add ?        */
+/**-------------------------------------------------------------**/
+
+  Signal on Halt
+  Signal on Syntax                   /* Establish error routines */
+
+  Arg parms '(' options
+  If Word(parms,1) = '?' Then Call Explain   /* Want short help? */
+
+Begin:            /**--- Enter your REXX code after this line ---*/
+  hi = '1DF8'x; lo = '1DF0'x; off = '1D30'x
+  source = arg(4)
+  Parse var source x how rexx_fn rexx_ft rexx_fm cmd_fn cmd_address
+/*'set cmstype rt'*/
+  Say ''
+  Say Left("Error running routine:",26) hi rexx_fn rexx_ft rexx_fm lo
+  Say Left("Routine invoked as:",26) hi cmd_fn lo
+  Say Left("Routine invoked from:",26) hi cmd_address lo
+  Say Left("Parms passed at execution:",26) hi arg(5) lo
+  Say Left("Error" arg(1) "in line" arg(2)":",26) hi errortext(arg(1))lo
+  Say Left('Line in error:',26) hi arg(3) lo
+  Say Left('Terminal input buffer has:',26) hi externals()" lines"lo
+  If externals() <> 0
+     Then do
+          Say 'Contents:'hi
+          Do externals()
+             parse external aline
+             say aline
+          end
+          Say lo
+          end
+  'MAKEBUF'
+  Say Left('Program stacks active:',26) hi rc-1 lo
+  'DROPBUF' rc
+  If queued() <> 0
+     Then do
+          Say 'Contents:'
+          Say hi
+          do queued()
+             parse pull aline
+             say aline
+          end
+  Say lo
+          end
+     Else Say 'The stack is empty.'
+Exit:                                   /* The one and only exit */
+  EXIT ARG(1)
+Halt:
+/**-------------------------------------------------------------**/
+/* PRE-REQ: REXXERR EXEC                                         */
+/* PURPOSE: To handle things like HX                             */
+/* INPUT  : None, interpreter will branch here, if Signal on Halt*/
+/*          was issued before the HX                             */
+/* OUTPUT : Information about where the routine was at time of   */
+/*          halt. See REXXERR EXEC for more information          */
+/* EXAMPLE: None                                                 */
+/**-------------------------------------------------------------**/
+
+Syntax:
+/**-------------------------------------------------------------**/
+/* PRE-REQ: REXXERR EXEC                                         */
+/* PURPOSE: To handle syntax type errors                         */
+/* INPUT  : None, interpreter will branch here, if Signal on     */
+/*          Syntax was issued before the error                   */
+/* OUTPUT : Information about where the routine was at time of   */
+/*          halt. See REXXERR EXEC for more information          */
+/* EXAMPLE: If word(options,'a')                                 */
+/**-------------------------------------------------------------**/
+  Parse source rexx_source
+  Exit Rexxerr(rc,sigl,sourceline(sigl),rexx_source,parms)
+
+Explain2:
+/**-------------------------------------------------------------**/
+/* PRE-REQ: Explain                                              */
+/* PURPOSE: To display internal help for this routine            */
+/* SPECIAL: Handles routines compressed by putting as many lines */
+/*          of code on one line. Help lines must be entirely on  */
+/*          one line though.                                     */
+/* INPUT  : Sigl variable, set by Explain doing a Signal to here */
+/* OUTPUT : Terminal display of internal help for this routine   */
+/* EXAMPLE: EXECNAME ?                                           */
+/**-------------------------------------------------------------**/
+  If Sigl < 20                    /* is this routine compressed? */
+     Then Do                                /* yes, special case */
+          helpline =  Sourceline(Sigl)
+          helpline =  substr(helpline,lastpos('Explain2',helpline))
+          parse value helpline with ';' help ';' helpline
+          Do until help = ''
+             interpret 'Say' help
+             parse value helpline with help ';' helpline
+          End /* Do */
+          End
+     Else do z = Sigl+1 to Sourceline()        /* no, no problem */
+             interpret 'Say' Sourceline(z)
+          end
+  Exit 99
+
+Explain:
+/**-------------------------------------------------------------**/
+/* PRE-REQ: Explain2                                             */
+/* PURPOSE: To set up Sigl variable for Explain2                 */
+/* SPECIAL: Do not put anything but help lines, in quotes, after */
+/*          the Signal Explain2 line.                            */
+/* INPUT  : None                                                 */
+/* OUTPUT : None                                                 */
+/* EXAMPLE: None                                                 */
+/**-------------------------------------------------------------**/
+  Signal Explain2            /* sets sigl variable to this line. */
+"+--------------------------------------------------------------------+"
+"|   FORMAT:                                                          |"
+"|     +---------+-------------------------------------------------+  |"
+"|     | REXXERR | rc sigl sourceline(sigl) rexx_source parmstring |  |"
+"|     +---------+-------------------------------------------------+  |"
+"|                                                                    |"
+"|    WHERE:                                                          |"
+"|        rc               - REXX variable                            |"
+"|        sigl             - REXX variable                            |"
+"|        sourceline(sigl) - REXX function                            |"
+"|        rexx_source      - from doing Parse source rexx_source      |"
+"|        parmstring       - from doing arg parmstring                |"
+"|                                                                    |"
+"| EXAMPLES:                                                          |"
+"|     REXXERR parms                                                  |"
+"|                                                                    |"
+"| FUNCTION:                                                          |"
+"|   To provide standard way of displaying error conditions in        |"
+"| EXEC/XEDIT/DISPLAY routines that use REXX as programming language  |"
+"|                                                                    |"
+"|   Once this EXEC gets called, it displays much info about the      |"
+"| failing routine and passes control back to the routine that        |"
+"| failed.                                                            |"
+"+--------------------------------------------------------------------+"

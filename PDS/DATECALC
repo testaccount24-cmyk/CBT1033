@@ -1,0 +1,693 @@
+/**-------------------- REXX -----------------------------------**/
+/**------------------------ I-NET, Inc. ------------------------**/
+/**---------------------------- for ----------------------------**/
+/**--------------- the Naval Sea Systems Command----------------**/
+/**-------------------------------------------------------------**/
+/* Created by:          On:         Reason:                      */
+/* Scott (nmi) Mattes   16 Mar 1990 Initial writing              */
+/*                                                               */
+/* Purpose:                                                      */
+/*   1) Return the number of days, months, and years between any */
+/* two dates.                                                    */
+/*   2) Return a date that is the product of adding or subtract- */
+/* ing a date and a time period (format m/d/y).                  */
+/*   3) Convert date from any REXX date format to any other.     */
+/* Plus some additional formats like ISO and ORACLE.             */
+/*   4) Produce list of holidays (U.S.) for a month or year.     */
+/*   5) Produce some misc. information                           */
+/*                                                               */
+/* External routines:   Purpose:                                 */
+/* REXXERR  EXEC        Displays information on error conditions */
+/* STEMEDIT MODULE      CBTTAPE File 895                         */
+/*                                                               */
+/* Modified by:         On:         Reason:                      */
+/* Lionel B. Dyck       10/21/2022  Replace REXXVAR with STEMEDIT*/
+/* Scott Mattes         02/25/1991  Fix check for +/- on date2   */
+/* Scott Mattes         02/11/1991  Fix error msg if output opt  */
+/*                                  is invalid.                  */
+/* Scott Mattes         02/05/1991  Fix internal doc             */
+/*                                  Add support for various date */
+/*                                  formats for date2            */
+/* Scott Mattes         04/20/1990  Fix L support to not append  */
+/*                                  ';' If only alt_output passed*/
+/* Scott Mattes         04/13/1990  Add support for L (long)     */
+/**-------------------------------------------------------------**/
+  Signal on Halt
+  Signal on Syntax                   /* Establish error routines */
+  If ARG(1) = '?' Then Call Explain          /* Want short help? */
+  Address Command
+Begin:            /**--- Enter your REXX code after this line ---*/
+  Parse Source . as fn .
+  /* Comment Start
+  Parse Source . as fn ft fm as_fn as_ft
+  If LENGTH(fm) = 2
+     Then 'EXECLOAD' fn ft fm
+     Comment End */
+  DList = '31 28 31 30 31 30 31 31 30 31 30 31'
+  DJList= '31 29 31 30 31 30 31 31 30 31 30 31'
+  DName = 'Monday Tuesday Wednesday Thursday Friday Saturday Sunday'
+  MList = '0 31 59 90 120 151 181 212 243 273 304 334'
+  MJList= '0 31 60 91 121 152 182 310 244 274 305 335'
+  MName = 'January February March April May June' ,
+          'July August September October November December'
+  If as = 'COMMAND'
+     Then Do
+          Parse Upper Arg output date1 date2 alt_output
+          If ( lefT(date2,1) = '-' | left(date2,1) = '+' ) & date2 <> ''
+             Then date2 = INSERT(' ',date2,1)
+          End
+     Else If as = 'FUNCTION'
+             Then Parse Upper Arg output, date1, date2, alt_output
+             Else Do
+                  Say 'I Do not work as a' as
+                  Exit 99
+                  End
+  x = VERIFY(output,' BCDEJMNOSUW.')
+  If x <> 0
+     Then Do
+          Say 'Output option' SUBSTR(output,x,1) 'is not supported.'
+          Exit 1
+          End
+  alts = 'D HM HY ISO L LEAPS M ORACLE W WY Q'
+  Do z = 1 to WORDS(alt_output)
+     If FIND(alts,WORD(alt_output,z)) = 0
+        Then Do
+             Say 'Alt_output option' WORD(alt_output,z) ,
+                 'is not supported.'
+             Exit 5
+             End
+  End /* Do */
+  long = 0
+  z = FIND(alt_output,'L')
+  If z <> 0
+     Then Do
+          alt_output = DELWORD(alt_output,z,1)
+          long = 1
+          End
+  If output date1 date2 = '' /* Using us as DATE() */
+     Then Do
+          out_ans = DATE()
+          Signal Exit
+          End
+  out_ans = ''
+  If date1 date2 = '' /* Using us as DATE() */
+     Then Do
+          Do z = 1 to LENGTH(output)
+             out_ans = out_ans DATE(SUBSTR(output,z,1))
+          End
+          Signal Exit
+          End
+  If output = '' Then output = ' '       /* For the Select later */
+  Select
+     When date1 = ''
+          Then Do
+               Parse Value DATE(s) with y 5 m 7 d
+               date1 = m'/'d'/'y
+               End
+     When LEFT(date1,1) = 'B'
+          Then date1 = unbase(SUBSTR(date1,2))
+     When LEFT(date1,1) = 'C'
+          Then date1 = uncentury(SUBSTR(date1,2))
+     When LEFT(date1,1) = 'D'
+          Then date1 = undays(SUBSTR(date1,2))
+     When LEFT(date1,1) = 'E'
+          Then Do
+               Parse Var date1 2 d'/'m'/'y
+               date1 = m'/'d'/'y
+               End
+     When LEFT(date1,1) = 'I'
+          Then Do
+               Parse Var date1 2 y'-'m'-'d
+               date1 = m'/'d'/'y
+               End
+     When LEFT(date1,1) = 'J'
+          Then date1 = unjdate(SUBSTR(date1,2))
+     When LEFT(date1,1) = 'M'
+          Then date1 = unmonth(SUBSTR(date1,2))
+     When LEFT(date1,1) = 'O'
+          Then Do
+               Parse Var date1 2 y'/'m'/'d
+               date1 = m'/'d'/'y
+               End
+     When LEFT(date1,1) = 'S'
+          Then Do
+               Parse Var date1 2 y 6 m 8 d
+               date1 = m'/'d'/'y
+               End
+     When LEFT(date1,1) = 'U'
+          Then date1 = SUBSTR(date1,2)
+     When LEFT(date1,1) = 'W'
+          Then date1 = unweekday(SUBSTR(date1,2))
+     Otherwise Nop
+  End /* Select */
+  operation = ''
+  If WORDS(date2) > 1                     /* More than one date? */
+     Then Parse Var date2 operation date2      /* Get desired op */
+  Select
+     When date2 = ''
+          then date2 = '.'
+     When LEFT(date2,1) = 'B'
+          Then date2 = unbase(SUBSTR(date2,2))
+     When LEFT(date2,1) = 'C'
+          Then date2 = uncentury(SUBSTR(date2,2))
+     When LEFT(date2,1) = 'D'
+          Then date2 = undays(SUBSTR(date2,2))
+     When LEFT(date2,1) = 'E'
+          Then Do
+               Parse Var date2 2 d'/'m'/'y
+               date2 = m'/'d'/'y
+               End
+     When LEFT(date2,1) = 'I'
+          Then Do
+               Parse Var date2 2 y'-'m'-'d
+               date2 = m'/'d'/'y
+               End
+     When LEFT(date2,1) = 'J'
+          Then date2 = unjdate(SUBSTR(date2,2))
+     When LEFT(date2,1) = 'M'
+          Then date2 = unmonth(SUBSTR(date2,2))
+     When LEFT(date2,1) = 'O'
+          Then Do
+               Parse Var date2 2 y'/'m'/'d
+               date2 = m'/'d'/'y
+               End
+     When LEFT(date2,1) = 'S'
+          Then Do
+               Parse Var date2 2 y 6 m 8 d
+               date2 = m'/'d'/'y
+               End
+     When LEFT(date2,1) = 'U'
+          Then date2 = SUBSTR(date2,2)
+     When LEFT(date2,1) = 'W'
+          Then date2 = unweekday(SUBSTR(date2,2))
+     Otherwise Nop
+  End /* Select */
+  If VALIDATE(date1) = ''
+     Then Do
+          Say 'Date' date1 'is invalid.'
+          Exit 2
+          End
+  If VERIFY(operation,' +-') <> 0
+     Then Do
+          Say 'Operation' operation 'is not supported.'
+          Exit 3
+          End
+  If operation = '' & ,
+     date2 <> '' & ,
+     date2 <> '.' & ,
+     VALIDATE(date2) = ''
+     Then Do
+          Say 'Date' date2 'is invalid.'
+          Exit 4
+          End
+  date1 = normalize(STRIP(date1))             /* normalize dates */
+  If date2 <> '' Then date2 = normalize(STRIP(date2))
+  If operation = '-' Then ans = date_minus(date1,date2)
+  If operation = '+' Then ans = date_add(date1,date2)
+  If operation = ''
+     Then If date2 = '' | date2 = '00/00/0000'
+             Then ans = date1
+             Else ans = date_dif(date1,date2)
+  out_ans = ''                /* Process output in way/s desired */
+  o_ans = ''
+  Do z = 1 to LENGTH(output)
+     out = SUBSTR(output,z,1)
+     If z > 1 Then out_ans = out_ans','
+     Select
+        When out = ' ' Then o_ans = null(ans)
+        When out = 'B' Then o_ans = base(ans)
+        When out = 'C' Then o_ans = century(ans)
+        When out = 'D' Then o_ans = RIGHT(jdate(ans),3) + 0
+        When out = 'E' Then o_ans = european(ans)
+        When out = 'J' Then o_ans = jdate(ans)
+        When out = 'M' Then o_ans = month(ans)
+        When out = 'N' Then o_ans = null(ans)
+        When out = 'O' Then o_ans = ordered(ans)
+        When out = 'S' Then o_ans = sorted(ans)
+        When out = 'U' Then o_ans = usa(ans)
+        When out = 'W' Then o_ans = weekday(ans)
+        When out = '.' Then Nop
+        Otherwise Say 'I Do not know' out 'format.'
+     End /* Select */
+     out_ans = out_ans o_ans
+  End /* Do */
+  If alt_output <> '' & out_ans <> ''
+     Then out_ans = out_ans';'
+  Do z = 1 to WORDS(alt_output)
+     out = WORD(alt_output,z)
+     If z > 1 Then out_ans = out_ans','
+     Select
+        When out = 'D'      Then o_ans = base(date1) - base(date2)
+        When out = 'HM'     Then o_ans = holidays(ans)
+        When out = 'HY'     Then o_ans = hy(ans)
+        When out = 'ISO'    Then o_ans = iso(ans)
+        When out = 'L'      Then o_ans = ''
+        When out = 'LEAPS'  Then o_ans = count_leaps(ans)
+        When out = 'M'      Then o_ans = dom(ans)
+        When out = 'ORACLE' Then o_ans = oracle(ans)
+        When out = 'W'      Then o_ans = (base(date1) - base(date2))%7
+        When out = 'WY'     Then o_ans = week_yr(ans)
+        When out = 'WM'     Then o_ans = week_mo(ans)
+        When out = 'Q'      Then o_ans = quarter(ans)
+        Otherwise Say 'I Do not know' out 'format.'
+     End /* Select */
+     out_ans = out_ans o_ans
+  End /* Do */
+Exit:                           /**--- The one and only Exit ---**/
+  If out_ans <> ''
+     Then Do
+          If as = 'COMMAND'  Then Say STRIP(out_ans)
+          If as = 'FUNCTION' Then Return STRIP(out_ans)
+          End
+  If DATATYPE(rc) <> 'NUM' Then Rc = 0
+  Exit Rc
+/**--- Procedures local to this EXEC ---**/
+hy:
+  Parse Arg m'/'d'/'y
+  holidays = ''
+  Do z = 1 to 12
+     If z > 1 Then holidays = holidays':'
+     holidays = holidays holidays(z'/1/'y)
+  End
+  Return holidays
+holidays:
+  Parse Arg m'/'d'/'y
+  Select
+     When m = 1
+          Then Do
+               holidays = "New Year's day - 1/1/"y
+               dow = base('1/1/'y)//7
+               If dow = 5 Then holidays = holidays 'on 12/31/'y-1
+               If dow = 6 Then holidays = holidays 'on 1/2/'y
+               If dow = 0 Then dow =  7
+               holidays = holidays', Martin Luther King day -' ,
+               unbase(base('1/1/'y) + (7 - dow) + 14)
+               End
+     When m = 2
+          Then Do
+               dow = base('2/1/'y)//7
+               If dow = 0 Then dow =  7
+               holidays = "Washington's Birthday -" ,
+                          unbase(base('2/1/'y) + (7 - dow) + 14)
+               End
+     When m = 5
+          Then Do
+               base = base('5/31/'y)
+               dow = base//7
+               holidays = 'Memorial day -' unbase(base-dow)
+               End
+     When m = 7
+          Then Do
+               holidays = 'Independence day - 7/4/'y
+               dow = base('7/4/'y)//7
+               If dow = 5 Then holidays = holidays 'on 7/3/'y
+               If dow = 6 Then holidays = holidays 'on 7/5/'y
+               End
+     When m = 9
+          Then Do
+               dow = base('9/1/'y)//7
+               If dow = 0 Then dow =  7
+               holidays = 'Labor day -' ,
+                          unbase(base('9/1/'y) + (7 - dow))
+               End
+     When m = 10
+          Then Do
+               dow = base('10/1/'y)//7
+               If dow = 0 Then dow =  7
+               holidays = 'Columbus day -' ,
+                          unbase(base('10/1/'y) + (7 - dow) + 7)
+               End
+     When m = 11
+          Then Do
+               holidays = "Veteran's day - 11/11/"y
+               base= base('11/11/'y)
+               dow = base//7
+               If dow = 5 Then holidays = holidays 'on 11/10/'y
+               If dow = 6 Then holidays = holidays 'on 11/12/'y
+               base= base('11/1/'y)
+               dow = base//7
+               If dow = 6 Then plus = 4
+               If dow = 0 Then plus = 3
+               If dow = 1 Then plus = 2
+               If dow = 2 Then plus = 1
+               If dow = 3 Then plus = 0
+               If dow = 4 Then plus = 6
+               If dow = 5 Then plus = 5
+               holidays = holidays', Thanksgiving day -' ,
+                          unbase(base + plus + 21)
+               End
+     When m = 12
+          Then Do
+               holidays = 'Christmas Day - 12/25/'y
+               base= base('12/25/'y)
+               dow = base//7
+               If dow = 5 Then holidays = holidays 'on 12/24/'y
+               If dow = 6 Then holidays = holidays 'on 12/26/'y
+               End
+     Otherwise holidays = 'None'
+  End /* Select */
+  Return holidays
+dom:
+  Parse Arg m'/'d'/'y
+  d = WORD(dlist,m)
+  If m = 2 Then d = d + isleap('//'y)
+  Return d
+iso:
+  Parse Arg m'/'d'/'y
+  Return y'-'m'-'d
+oracle:
+  Parse Arg m'/'d'/'y
+  If long
+     Then Nop
+     Else y = RIGHT(y,2,0)
+  Return d-LEFT(WORD(mname,m),3)'-'y
+week_yr: Procedure Expose mlist long
+  Parse Arg m'/'d'/'y
+  Return (RIGHT(jdate(m'/'d'/'y),3)%7)+1
+week_mo: Procedure Expose mlist long
+  Parse Arg m'/'d'/'y
+  Return  (RIGHT(jdate(m/'d'/'y),3) - 'RIGHT(jdate(m'/1/'y),3))
+quarter: Procedure
+  Parse Arg m'/'d'/'y
+  Return (m+2)%3
+usa: Procedure Expose long
+  Parse Arg m'/'d'/'y
+  If long
+     Then Nop
+     Else y = RIGHT(y,2,0)
+  Return RIGHT(m,2,0)'/'RIGHT(d,2,0)'/'y
+sorted: Procedure
+  Parse Arg m'/'d'/'y
+  Return RIGHT(y,4,0)||RIGHT(m,2,0)||RIGHT(d,2,0)
+ordered: Procedure Expose long
+  Parse Arg m'/'d'/'y
+  If long
+     Then Nop
+     Else y = RIGHT(y,2,0)
+  Return y'/'RIGHT(m,2,0)'/'RIGHT(d,2,0)
+european: Procedure Expose long
+  Parse Arg m'/'d'/'y
+  If long
+     Then Nop
+     Else y = RIGHT(y,2,0)
+  Return RIGHT(d,2,0)'/'RIGHT(m,2,0)'/'y
+normal:
+null: Procedure Expose dname mlist mname
+  Parse Arg m'/'d'/'y
+  Return d LEFT(WORD(mname,m),3) y
+base: Procedure Expose dname mlist long
+  Parse Arg m'/'d'/'y
+  Return (RIGHT(jdate(m'/'d'/'y),3) - isleap('//'y) + ,
+         count_leaps(m'/'d'/'y)  + ,
+         ((y-1) * 365)) - 1
+undays: Procedure Expose dname dlist
+  Parse Arg date
+  y = 0
+  m = 0
+  d = date
+  Do m = 1 to 12 while d > WORD(dlist,m)
+     d = d - WORD(dlist,m)
+  End /* Do */
+  If d < 1
+     Then Do
+          d = WORD(dlist,m)
+          m = m - 1
+          End
+  Return m'/'d'/'y
+unweekday: Procedure Expose dname dlist
+  Parse Arg weekday
+  y = FIND(UPPER(dname),weekday) - 1
+  x = DATE('b')//7
+  If x = y Then Return DATE('u')
+  If x < y Then Return unbase(DATE('b')+y)
+           Else Return unbase(DATE('b')-y)
+unmonth: Procedure Expose mname
+  Parse Arg month
+  y = LEFT(DATE('s'),4)
+  m = FIND(UPPER(mname),month)
+  Return m'/1/'y
+uncentury: Procedure Expose dname dlist djlist
+  Parse Arg date
+  y = date%366
+  d = date - (y*365 + count_leaps('//'y))
+  If d < 1
+     Then Do
+          y = y - 1
+          d = date - (y*365 + count_leaps('//'y))
+          End
+  m = 0
+  If isleap('//'y)
+     Then list = djlist
+     Else list = dlist
+  Do m = 1 to 12 while d > WORD(list,m)
+     d = d - WORD(list,m)
+  End /* Do */
+  If d < 1
+     Then Do
+          d = d + WORD(dlist,m)
+          m = m - 1
+          End
+  If m < 1
+     Then Do
+          m = m + 12
+          y = y - 1
+          End
+  Return m'/'d'/'y
+century: Procedure Expose dname mlist long
+  Parse Arg m'/'d'/'y
+  Return RIGHT(jdate(m'/'d'/'y),3) + ,
+         count_leaps(m'/'d'/'RIGHT(y,2)) + ,
+         ((RIGHT(y,2)) * 365)
+weekday: Procedure Expose dname mlist long
+  Parse Arg m'/'d'/'y
+  x = base(m'/'d'/'y)//7
+  Return WORD(dname,x+1)
+month: Procedure Expose mlist mname
+  Parse Arg m'/'d'/'y
+  Return WORD(mname,m)
+unjdate: Procedure Expose dlist djlist
+  Parse Arg date
+  y = LEFT(date,2)
+  d = RIGHT(date,3)
+  If isleap('//'y)
+     Then list = djlist
+     Else list = dlist
+  m = 0
+  Do m = 1 to 12 while d > WORD(list,m)
+     d = d - WORD(list,m)
+  End /* Do */
+  If d < 1
+     Then Do
+          d = WORD(dlist,m)
+          m = m - 1
+          End
+  Return m'/'d'/'y
+jdate: Procedure Expose mlist long
+  Parse Arg m'/'d'/'y
+  If m = 0 Then m = 1
+  If m > 2 Then d = d + isleap('//'y)
+  If long
+     Then Nop
+     Else y = RIGHT(y,2,0)
+  Return y || RIGHT(WORD(mlist,m)+d,3,0)
+isleap: Procedure
+  Parse Arg '/' '/'y
+  Return y // 400 = 0 | ( y // 4 = 0 & y // 100 <> 0)
+validate: Procedure Expose dlist
+  Parse Arg m'/'d'/'y
+  If y < 0  Then Return ' '
+  If m < 1  Then Return ' '
+  If m > 12 Then Return ' '
+  If d < 1  Then Return ' '
+  If d > (WORD(dlist,m) + isleap('//'y)) Then Return ' '
+  Return m'/'d'/'y
+normalize: Procedure Expose long
+  Parse Arg m'/'d'/'y
+  If ARG(1) = '.'
+     Then Do
+          m = ''
+          d = ''
+          y = ''
+          End
+  If m = '' Then m = 00
+  If LENGTH(m) < 2 Then m = RIGHT(m,2,0)
+  If d = '' Then d = 00
+  If LENGTH(d) < 2 Then d = RIGHT(d,2,0)
+  If y = '' Then y = 0000
+  If LENGTH(y) = 2 & long
+     Then y = LEFT(DATE('s'),2)''RIGHT(y,2,0)
+  If LENGTH(y) < 4 Then y = RIGHT(y,4,0)
+  Return m'/'d'/'y
+unbase:
+  Parse Arg days
+  days = days + 1
+  y = days%365
+  days = days - ((y-1)*365) - count_leaps('//'y)
+  If days > 0 & days < 60 & isleap('//'y) Then days = days + 1
+  If days < 1
+     Then Do
+          days = days + 365 + isleap('//'y)
+          y = y - 1
+          End
+  m = 0
+  Do m = 1 to 24 while days > WORD(dlist dlist,m)
+     days = days - WORD(dlist dlist,m)
+  End /* Do */
+  If m > 12
+     Then Do
+          m  = m - 12;y = y + 1
+          End
+  Return m'/'days'/'y
+date_minus:
+  Parse Arg m1'/'d1'/'y1, m2'/'d2'/'y2
+  y = y1 - y2
+  m = m1 - m2
+  d = d1 - d2
+  Do while m < 1
+     y = y - 1
+     m = m + 12
+  End
+  Do while d < 1
+     m = m - 1
+     If isleap('//'y) & m = 2 Then d = d + 1
+     If m < 1
+        Then Do
+             y = y - 1
+             m = m + 12
+             End
+     d = d + WORD(dlist,m)
+  End
+  If isleap('//'y)
+     Then list = djlist
+     Else list = dlist
+  If d > WORD(list,m)
+     Then Do
+          d = d - (d - WORD(list,m))
+          End
+  Return m'/'d'/'y
+date_add:
+  Parse Arg m1'/'d1'/'y1, m2'/'d2'/'y2
+  d = d1 + d2;  m = m1 + m2;  y = y1 + y2         /* Do the math */
+  Do while m > 12                                /* 'Fix' months */
+     m = m - 12
+     y = y + 1
+  End
+  If isleap('//'y) Then list = djlist; Else list = dlist
+  Do while d > WORD(list,m)         /* 'Fix' days */
+     d = d - WORD(list,m)
+     m = m + 1
+     If m > 12
+        Then Do
+             m = m - 12
+             y = y + 1
+             If isleap('//'y)
+                Then list = djlist
+                Else list = dlist
+             End
+  End
+  If d > WORD(list,m)
+     Then Do
+          d = d - (WORD(list,m))
+          m = m + 1
+          If m > 12
+             Then Do
+                  m = m -12
+                  y = y +1
+                  End
+          End
+  Return m'/'d'/'y
+date_dif:
+  Parse Arg m1'/'d1'/'y1, m2'/'d2'/'y2
+      If ARG(1) = ARG(2) Then Return '0/0/0'
+  m = (12-m2) + (m1 - 1)
+  d = (WORD(dlist,m2) - d2) + d1
+  y = y1 - (y2 + 1)
+  If d >= WORD(dlist,m2)
+     Then Do
+          m = m + 1
+          d = d - WORD(dlist,m2)
+          End
+  If m  > 11
+     Then Do
+          m = m - 12
+          y = y + 1
+          End
+  Return m'/'d'/'y
+count_leaps: Procedure
+  Parse Arg '/' '/'y
+  Return (y % 400) - (y % 100) + y % 4
+/**--- Standard procedures useful in all EXECs ---**/
+Upper:               /* A function to Return an uppercase string */
+  Return TRANSLATE(ARG(1))
+Halt:         /* A sub-routine to get control on HALT processing */
+Syntax:     /* A sub-routine to get control on SYNTAX processing */
+  Parse Source rexx_source
+  Say ''
+  Say 'There has been an error in execution, information about the',
+      'problem is:'
+  Call REXXERR rc,sigl,SOURCELINE(sigl),rexx_source,parms
+  call stemedit 'view','*' /* Displays active variables and values */
+  Exit
+Explain2:              /* A sub-routine to display internal help */
+  If Sigl < 20                    /* is this routine compressed? */
+     Then Do                                /* yes, special case */
+          helpline =  Sourceline(Sigl)
+          helpline =  SUBSTR(helpline,LASTPOS('Explain2',helpline))
+          Parse Value helpline with ';' help ';' helpline
+          Do until help = ''
+             Interpret 'Say' help
+             Parse Value helpline with help ';' helpline
+          End /* Do */
+          End
+     Else Do z = Sigl+1 to Sourceline()        /* no, no problem */
+             Interpret 'Say' Sourceline(z)
+          End
+  Exit 99
+Explain:              /* A sub-routine to point to internal help */
+  Procedure
+  Signal Explain2            /* sets sigl variable to this line. */
+"+--------------------------------------------------------------------+"
+"|   Format:                                                          |"
+"|            +-----------------------------------------------+       |"
+"|   Function | DATECALC(output, date , -/+ m/d/y,alt_output) |       |"
+"|            |         (output, date1, date2, alt_output)    |       |"
+"|            +-----------+-----------------------------------+       |"
+"|   Command  | DATECALC  | output date  -/+m/d/y alt_output  |       |"
+"|            |           | output date1 date2 alt_output     |       |"
+"|            +-----------+-----------------------------------+       |"
+"|                                                                    |"
+"| PURPOSE:                                                           |"
+"|   1) Return the number of days, months, and years between any      |"
+"| two dates.                                                         |"
+"|   2) Return a date that is the product of adding or subtract-      |"
+"| ing a date and a time period (format -/+m/d/y).                    |"
+"|   3) converts from one or two date formats to many others          |"
+"|   4) Return holidays in a month or year                            |"
+"|                                                                    |"
+"| WHERE:                                                             |"
+"|   output    = REXX DATE() function option/s, or place holder '.'   |"
+"|   date      = date in format m/d/y, defaults to DATE('u').         |"
+"|   date1       You may preface the date with any of the valid REXX  |"
+"|               date Options to indicate type of input (or I for ISO)|"
+"|   operation = + or -. Used in a function must have space after, as |"
+"|               a Command must not.                                  |"
+"|   m/d/y     = a time span. mm, dd, yy. Any of which can be any     |"
+"|               positive number.                                     |"
+"|   date2     = a valid date in format m/d/y, or place holder '.'    |"
+"|   alt_output= D     - Days between dates                           |"
+"|             = HM    - Holidays in the given month                  |"
+"|             = HY    - Holidays in the given year                   |"
+"|             = ISO   - ISO format                                   |"
+"|             = LEAPS - Leap years in answer                         |"
+"|             = ORACLE- ORACLE format                                |"
+"|             = M     - days in month of date1                       |"
+"|             = W     - Weeks in Result                              |"
+"|             = WY    - Week of Year                                 |"
+"|             = Q     - Quarter of Year ( Jan-Mar = 1, .....)        |"
+"|                                                                    |"
+"| EXAMPLE:                                                           |"
+"|   datecalc(u,'3/19/90','- 8/25/57') returns 6/24/32                |"
+"|   datecalc(u,'3/19/90','8/25/57') returns 6/25/32                  |"
+"|                                                                    |"
+"| For further information type 'HELP CMS DATECALC' and press ENTER   |"
+"+--------------------------------------------------------------------+"
